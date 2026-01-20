@@ -2,14 +2,18 @@ package com.example.ActivityTracker.controller;
 
 import com.example.ActivityTracker.dto.EventRequestDto;
 import com.example.ActivityTracker.dto.EventResponseDto;
+import com.example.ActivityTracker.exception.BadRequestException;
 import com.example.ActivityTracker.model.Event;
 import com.example.ActivityTracker.service.EventService;
 import com.example.ActivityTracker.mapper.EventMapper;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.Instant;
 
 
 @RestController
@@ -35,6 +39,35 @@ public class EventController {
                 .map(eventMapper::toDto)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public Page<EventResponseDto> getEvents(
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String eventType,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            Pageable pageable
+    ) {
+        if ((from == null) != (to == null)){
+            throw new BadRequestException("from and to must be provided together");
+        }
+        Page<Event> events;
+        if (userId != null && from != null) {
+            events = eventService.getEventsByUserAndBetween(userId, from, to, pageable);
+        } else if (userId != null) {
+            events = eventService.getEventsByUser(userId, pageable);
+        } else if (eventType != null) {
+            events = eventService.getEventsByEventType(eventType, pageable);
+        } else if (from != null) {
+            events = eventService.getEventsBetween(from, to, pageable);
+        } else {
+            events = eventService.getAllEvents(pageable);
+        }
+
+        return events.map(eventMapper::toDto);
     }
 
     @PostMapping

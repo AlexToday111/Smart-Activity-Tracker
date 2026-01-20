@@ -89,4 +89,22 @@ public class EventService {
     public long countDistinctUsersBetween(Instant from, Instant to) {
         return eventRepository.countDistinctUsersBetween(from, to);
     }
+
+    @Transactional(readOnly = true)
+    public Page<Event> getEventsByEventType(String eventType, Pageable pageable){
+        return eventRepository.findByEventTypeOrderByEventTimeDesc(eventType, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Event> getEventsByUserAndBetween(
+            String userId,
+            Instant from,
+            Instant to,
+            Pageable pageable
+    ) {
+        if (from.isAfter(to)){
+            throw new IllegalArgumentException("from must be before to");
+        }
+        return eventRepository.findByUserIdAndEventTimeBetweenOrderByEventTimeDesc(userId, from, to, pageable);
+    }
 }
