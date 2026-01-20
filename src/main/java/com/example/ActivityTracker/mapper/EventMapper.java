@@ -1,6 +1,7 @@
 package com.example.ActivityTracker.mapper;
 
 
+import com.example.ActivityTracker.dto.EventRequestDto;
 import com.example.ActivityTracker.dto.EventResponseDto;
 import com.example.ActivityTracker.model.Event;
 import org.springframework.stereotype.Component;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class EventMapper {
 
     // DTO to Entity
-    public Event toEntity(EventResponseDto dto) {
+    public Event toEntity(EventRequestDto dto) {
 
         if (dto == null) {
             return null;
@@ -30,12 +31,11 @@ public class EventMapper {
             return null;
         }
         EventResponseDto dto = new EventResponseDto();
-        event.setId(event.getId());
-        event.setUserId(event.getUserId());
-        event.setEventType(event.getEventType());
-        event.setMetadata(event.getMetadata());
-        event.setEventTime(event.getEventTime());
-        event.setCreatedAt(event.getCreatedAt());
+        dto.setId(event.getId());
+        dto.setUserId(event.getUserId());
+        dto.setEventType(event.getEventType());
+        dto.setMetadata(event.getMetadata());
+        dto.setEventTime(event.getEventTime());
 
         return dto;
     }

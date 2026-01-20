@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -33,9 +34,8 @@ public class EventService {
 
 
     @Transactional(readOnly = true)
-    public Event getEventById(Long id) {
-        return eventRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Event not found: " + id));
+    public Optional<Event> getEventById(Long id) {
+        return eventRepository.findById(id);
     }
 
     @Transactional(readOnly = true)
@@ -58,7 +58,8 @@ public class EventService {
 
 
     public Event updateEvent(Long id, Event updated) {
-        Event existing = getEventById(id);
+        Event existing = getEventById(id)
+                .orElseThrow(() -> new NotFoundException("Event not found"));
 
         existing.setEventType(updated.getEventType());
         existing.setMetadata(updated.getMetadata());

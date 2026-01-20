@@ -1,15 +1,16 @@
 package com.example.ActivityTracker.controller;
 
+import com.example.ActivityTracker.dto.EventRequestDto;
 import com.example.ActivityTracker.dto.EventResponseDto;
 import com.example.ActivityTracker.model.Event;
 import com.example.ActivityTracker.service.EventService;
 import com.example.ActivityTracker.mapper.EventMapper;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.stream.*;
 
 @RestController
 @RequestMapping("/api/events")
@@ -23,11 +24,9 @@ public class EventController {
     }
 
     @GetMapping
-    public List<EventResponseDto> getAllEvents() {
-        return eventService.getAllEvents()
-                .stream()
-                .map(eventMapper::toDto)
-                .collect(Collectors.toList());
+    public Page<EventResponseDto> getAllEvents(Pageable pageable){
+        return eventService.getAllEvents(pageable)
+                .map(eventMapper::toDto);
     }
 
     @GetMapping("/{id}")
@@ -39,7 +38,7 @@ public class EventController {
     }
 
     @PostMapping
-    public ResponseEntity<EventResponseDto> createEvent(@RequestBody @Valid EventResponseDto dto) {
+    public ResponseEntity<EventRequestDto> createEvent(@RequestBody @Valid EventResponseDto dto) {
         Event event = eventMapper.toEntity(dto);
         Event savedEvent = eventService.createEvent(event);
         return ResponseEntity.ok(eventMapper.toDto(savedEvent));

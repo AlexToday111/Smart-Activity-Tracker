@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.example.ActivityTracker.dto.EventTypeCount;
 
 import java.time.Instant;
 import java.util.List;
@@ -31,13 +32,13 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     // 6) Агрегация: сколько событий каждого типа за период
     @Query("""
-           select e.eventType, count(e)
+           select new com.example.ActivityTracker.dto.EventTypeCount(e.eventType, count(e))
            from Event e
            where e.eventTime >= :from and e.eventTime < :to
            group by e.eventType
            order by count(e) desc
            """)
-    List<Object[]> countByEventTypeBetween(@Param("from") Instant from, @Param("to") Instant to);
+    List<EventTypeCount> countByEventTypeBetween(@Param("from") Instant from, @Param("to") Instant to);
 
     // 7) DAU-like: количество уникальных пользователей за период (простейший вариант)
     @Query("""
