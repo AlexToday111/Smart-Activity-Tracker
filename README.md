@@ -1,77 +1,195 @@
 # Smart Activity Tracker (backend)
 
-Java 17 / Spring Boot 3.2 сервис для приёма событий, хранения в PostgreSQL и простой аналитики (DAU, счётчики по типам событий).
+Backend-сервис на Java 17 / Spring Boot для приёма пользовательских событий, хранения в PostgreSQL и расчёта простой аналитики (DAU и счётчики по типам событий).
 
-## Архитектура
+## Возможности
 
-- REST API: Spring MVC контроллеры `EventController`, `AnalyticsController`.
-- Сервисный слой: `EventService` инкапсулирует бизнес-логику и работу с репозиторием.
-- Доступ к данным: Spring Data JPA репозиторий для сущности `Event`.
-- DTO/маппинг: `EventRequestDto`/`EventResponseDto` + `EventMapper` для изоляции модели БД от внешних контрактов.
-- Миграции: Flyway (`src/main/resources/db/migration`, формат `V<версия>__<описание>.sql`).
-- Хранение: PostgreSQL. Индексы по `user_id`, `event_type`, `event_date` для выборок и аналитики.
+- Приём событий с произвольными метаданными.
+- CRUD и фильтрация событий (по пользователю, типу, диапазону времени).
+- Пагинация и сортировка через стандартный `Pageable`.
+- Базовая аналитика: DAU и топ типов событий за период.
+- Наблюдаемость через Actuator + Prometheus/Grafana.
+- Документация API через OpenAPI (springdoc).
 
-## Быстрый старт (Docker Compose)
+## Стек
 
-Требования: Docker и Docker Compose.
+- Java 17, Spring Boot 3.2.3
+- Spring Web, Validation, Data JPA
+- PostgreSQL + Flyway
+- Micrometer + Prometheus + Grafana
+- springdoc-openapi
+- Testcontainers + JUnit 5 + Mockito
+
+## Архитектура (обзор)
+
+```
+Client
+  │
+  ▼
+REST API (controllers)
+  │ DTO/Mapper
+  ▼
+Service (business rules, validation)
+  │
+  ▼
+Repository (JPA queries)
+  │
+  ▼
+PostgreSQL (events)
+```
+
+Подробности по слоям вынесены в `Architecture/`:
+
+- `Architecture/API/readme.md`
+- `Architecture/Service/readme.md`
+- `Architecture/Data-Access/readme.md`
+- `Architecture/Domain-Model/readme.md`
+- `Architecture/DTO-Mapping/readme.md`
+- `Architecture/Database-Migrations/readme.md`
+- `Architecture/Configuration/readme.md`
+- `Architecture/Observability/readme.md`
+- `Architecture/Infrastructure/readme.md`
+- `Architecture/Testing/readme.md`
+
+## Структура проекта
+
+- `src/main/java/.../controller` — REST API
+- `src/main/java/.../service` — бизнес-логика
+- `src/main/java/.../repository` — JPA доступ к данным
+- `src/main/java/.../model` — JPA сущности
+- `src/main/java/.../dto` — DTO
+- `src/main/java/.../mapper` — преобразования DTO <-> entity
+- `src/main/java/.../exception` — обработка ошибок
+- `src/main/resources/db/migration` — миграции Flyway
+- `docker-compose.yml`, `Dockerfile` — инфраструктура запуска
+- `prometheus.yml` — конфигурация Prometheus
+
+## Модель данных
+
+Таблица `events`:
+
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `id` | BIGSERIAL | PK |
+| `user_id` | TEXT | идентификатор пользователя |
+| `event_type` | TEXT | тип события |
+| `event_date` | TIMESTAMPTZ | время события |
+| `metadata` | TEXT | метаданные (строка, обычно JSON) |
+| `created_at` | TIMESTAMPTZ | время записи в БД |
+
+`Event` в коде маппится на эти столбцы, а `eventTime` связан с `event_date`.
+
+## API
+
+### События
+
+- `GET /api/events` — список событий (пагинация).
+  - Фильтры: `userId`, `eventType`, `from`, `to`.
+  - `from` и `to` должны передаваться вместе.
+  - Пример пагинации: `?page=0&size=20&sort=eventTime,desc`.
+- `GET /api/events/{id}` — получить событие по id.
+- `POST /api/events` — создать событие.
+- `PUT /api/events/{id}` — обновить событие (обновляются `eventType`, `metadata`, `eventTime`; `userId` не меняется).
+- `DELETE /api/events/{id}` — удалить событие.
+
+Пример создания события:
+
+```bash
+curl -sS -X POST http://localhost:8080/api/events \
+  -H 'Content-Type: application/json' \
+  -d '{"userId":"u1","eventType":"click","eventTime":"2026-01-21T12:00:00Z","metadata":"{\"button\":\"buy\"}"}'
+```
+
+### Аналитика
+
+- `GET /api/analytics/event-types?from=...&to=...` — счётчики по типам событий.
+- `GET /api/analytics/dau?from=...&to=...` — DAU за период.
+
+В аналитике время считается как `[from, to)`: `from` включительно, `to` исключительно.
+
+### Документация OpenAPI
+
+Swagger UI доступен на стандартном пути springdoc (`/swagger-ui.html`, редирект на `/swagger-ui/index.html`), если настройки не переопределены.
+
+## Валидация и ошибки
+
+- `EventRequestDto` валидируется через `@Valid` и `@NotBlank`.
+- Ошибки возвращаются в формате `ApiError`:
+
+```json
+{
+  "status": 400,
+  "error": "BAD_REQUEST",
+  "message": "userId is required",
+  "path": "/api/events",
+  "timestamp": "2026-01-21T12:00:00Z"
+}
+```
+
+Исключения `NotFoundException` и `BadRequestException` маппятся в 404/400. Остальные — в 500.
+
+## Конфигурация
+
+В `src/main/resources/application.yml` источники БД ожидаются через переменные окружения:
+
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+
+## Запуск
+
+### Docker Compose
 
 ```bash
 docker compose up -d --build
 ```
 
-Что поднимется:
-- `app` — Spring Boot на порту `8080`
-- `db` — PostgreSQL на хост-порту `5433` (прокинут в контейнер `5432`)
+Поднимаются сервисы:
 
-Проверки после запуска:
-```bash
-curl -sS http://localhost:8080/api/events
-curl -sS http://localhost:8080/api/analytics/dau?from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z
-```
+- `app` — порт `8080`
+- `db` — PostgreSQL (хост-порт `5433` -> контейнер `5432`)
+- `prometheus` — порт `9090`
+- `grafana` — порт `3000` (логин/пароль: `admin`/`admin`)
 
-Остановить и удалить всё с томом:
+Остановить:
+
 ```bash
 docker compose down -v
 ```
 
-## Ручные проверки API (curl)
+### Локально (без Docker)
 
-Создать событие:
-```bash
-curl -sS -X POST http://localhost:8080/api/events \
-  -H 'Content-Type: application/json' \
-  -d '{"userId":"u1","eventType":"click","timestamp":"2026-01-21T12:00:00Z"}'
-```
+Требования: JDK 17, Maven, внешняя PostgreSQL.
 
-Получить список событий (пагинация `page`, `size`):
-```bash
-curl -sS "http://localhost:8080/api/events?page=0&size=10"
-```
-Фильтры поддерживаются: `userId`, `eventType`, `from`, `to` (ISO‑8601, например `2026-01-21T00:00:00Z`).
-
-Аналитика:
-- DAU: `GET /api/analytics/dau?from=...&to=...`
-- Счётчики по типам: `GET /api/analytics/event-types?from=...&to=...`
-
-## Локальный запуск без Docker
-
-Требования: JDK 17, Maven.
 ```bash
 mvn spring-boot:run
 ```
-Нужна внешняя PostgreSQL с параметрами:
-- `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/activity`
-- `SPRING_DATASOURCE_USERNAME=activity`
-- `SPRING_DATASOURCE_PASSWORD=activity`
+
+## Наблюдаемость
+
+Actuator включён, доступны эндпоинты:
+
+- `/actuator/health`
+- `/actuator/info`
+- `/actuator/metrics`
+- `/actuator/prometheus`
+
+Prometheus настраивается через `prometheus.yml`, Grafana доступна на `http://localhost:3000`.
 
 ## Миграции Flyway
 
-- Файлы лежат в `src/main/resources/db/migration`.
-- Формат имени: `V<версия>__<описание>.sql` (двойное подчёркивание перед описанием).
-- Текущая миграция: `V1__create_events.sql` создаёт таблицу `events` и индексы.
+Миграции лежат в `src/main/resources/db/migration` и применяются автоматически при старте приложения.
+Формат имени: `V<версия>__<описание>.sql`.
 
-## Полезное
+## Тестирование
 
-- Логи приложения в Docker: `docker compose logs -f app`
-- Если порт `5432` занят на хосте, используем `5433` (уже настроено в `docker-compose.yml`).
-- При ошибках Flyway чаще всего проблема в формате имени файла или синтаксисе SQL.
+- Unit: `EventServiceTest` (Mockito).
+- Integration: `EventControllerIntegrationTest`, `AnalyticsControllerIntegrationTest` (Testcontainers + Postgres).
+
+Запуск:
+
+```bash
+mvn test
+```
+
+Для интеграционных тестов нужен Docker.
