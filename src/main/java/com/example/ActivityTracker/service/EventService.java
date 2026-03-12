@@ -48,9 +48,7 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public Page<Event> getEventsBetween(Instant from, Instant to, Pageable pageable) {
-        if (from.isAfter(to)) {
-            throw new IllegalArgumentException("from must be before to");
-        }
+        validateTimeRange(from, to);
         return eventRepository.findByEventTimeBetweenOrderByEventTimeDesc(from, to, pageable);
     }
 
@@ -61,7 +59,9 @@ public class EventService {
 
         existing.setEventType(updated.getEventType());
         existing.setMetadata(updated.getMetadata());
-        existing.setEventTime(updated.getEventTime());
+        if (updated.getEventTime() != null) {
+            existing.setEventTime(updated.getEventTime());
+        }
 
         return eventRepository.save(existing);
     }
@@ -77,14 +77,13 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public List<EventTypeCount> countByEventTypeBetween(Instant from, Instant to) {
-        if (from.isAfter(to)) {
-            throw new IllegalArgumentException("from must be before to");
-        }
+        validateTimeRange(from, to);
         return eventRepository.countByEventTypeBetween(from, to);
     }
 
     @Transactional(readOnly = true)
     public long countDistinctUsersBetween(Instant from, Instant to) {
+        validateTimeRange(from, to);
         return eventRepository.countDistinctUsersBetween(from, to);
     }
 
@@ -100,9 +99,16 @@ public class EventService {
             Instant to,
             Pageable pageable
     ) {
-        if (from.isAfter(to)) {
+        validateTimeRange(from, to);
+        return eventRepository.findByUserIdAndEventTimeBetweenOrderByEventTimeDesc(userId, from, to, pageable);
+    }
+
+    private void validateTimeRange(Instant from, Instant to) {
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("from and to are required");
+        }
+        if (!from.isBefore(to)) {
             throw new IllegalArgumentException("from must be before to");
         }
-        return eventRepository.findByUserIdAndEventTimeBetweenOrderByEventTimeDesc(userId, from, to, pageable);
     }
 }
