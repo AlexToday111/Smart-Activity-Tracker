@@ -145,7 +145,7 @@ Swagger UI доступен на стандартном пути springdoc (`/sw
 }
 ```
 
-Исключения `NotFoundException` и `BadRequestException` маппятся в 404/400. Остальные — в 500.
+Исключения `NotFoundException`, `BadRequestException` и ошибки валидации диапазона времени маппятся в 404/400. Остальные — в 500.
 
 ## Конфигурация
 

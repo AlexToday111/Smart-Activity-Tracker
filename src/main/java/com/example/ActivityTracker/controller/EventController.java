@@ -78,7 +78,7 @@ public class EventController {
                     description = "Список событий успешно получен"
             ),
             @ApiResponse(
-                    responseCode = "404",
+                    responseCode = "400",
                     description = "Некорректные параметры запроса (например, from указан без to)"
             )
     })
@@ -106,7 +106,7 @@ public class EventController {
     )
     @ApiResponses(value = {
             @ApiResponse(
-                    responseCode = "200",
+                    responseCode = "201",
                     description = "Событие успешно создано",
                     content = @Content(schema = @Schema(implementation = EventResponseDto.class))
             ),
