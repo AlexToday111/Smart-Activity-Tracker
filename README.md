@@ -1,17 +1,19 @@
-# Smart Activity Tracker (backend)
+# Smart Activity Tracker
 
 <p align="center">
   <img src="./docs/assets/image.png" alt="Smart Activity Tracker logo" width="300" height="300">
 </p>
 
-Backend-сервис на Java 17 / Spring Boot для приёма пользовательских событий, хранения в PostgreSQL и расчёта простой аналитики (DAU и счётчики по типам событий).
+Spring Boot приложение на Java 17 для приёма пользовательских событий, хранения в PostgreSQL и расчёта простой аналитики. В проект встроена простая веб-панель, которая работает поверх тех же REST-эндпоинтов.
 
 ## Возможности
 
 - Приём событий с произвольными метаданными.
 - CRUD и фильтрация событий (по пользователю, типу, диапазону времени).
+- Комбинирование фильтров в `GET /api/events`.
 - Пагинация и сортировка через стандартный `Pageable`.
 - Базовая аналитика: DAU и топ типов событий за период.
+- Встроенный frontend для ручной отправки событий и просмотра аналитики.
 - Наблюдаемость через Actuator + Prometheus/Grafana.
 - Документация API через OpenAPI (springdoc).
 
@@ -58,6 +60,7 @@ PostgreSQL (events)
 ## Структура проекта
 
 - `src/main/java/.../controller` — REST API
+- `src/main/java/.../config` — конфигурация Spring/OpenAPI
 - `src/main/java/.../service` — бизнес-логика
 - `src/main/java/.../repository` — JPA доступ к данным
 - `src/main/java/.../model` — JPA сущности
@@ -65,8 +68,11 @@ PostgreSQL (events)
 - `src/main/java/.../mapper` — преобразования DTO <-> entity
 - `src/main/java/.../exception` — обработка ошибок
 - `src/main/resources/db/migration` — миграции Flyway
-- `docker-compose.yml`, `Dockerfile` — инфраструктура запуска
-- `prometheus.yml` — конфигурация Prometheus
+- `src/main/resources/static` — встроенный frontend (`/`)
+- `ops/docker-compose.yml` — локальный docker compose
+- `ops/docker/Dockerfile` — Docker build
+- `ops/monitoring/prometheus.yml` — конфигурация Prometheus
+- `ops/qodana.yaml` — конфигурация Qodana
 
 ## Модель данных
 
@@ -89,6 +95,7 @@ PostgreSQL (events)
 
 - `GET /api/events` — список событий (пагинация).
   - Фильтры: `userId`, `eventType`, `from`, `to`.
+  - Фильтры можно комбинировать.
   - `from` и `to` должны передаваться вместе.
   - Пример пагинации: `?page=0&size=20&sort=eventTime,desc`.
 - `GET /api/events/{id}` — получить событие по id.
@@ -114,6 +121,14 @@ curl -sS -X POST http://localhost:8080/api/events \
 ### Документация OpenAPI
 
 Swagger UI доступен на стандартном пути springdoc (`/swagger-ui.html`, редирект на `/swagger-ui/index.html`), если настройки не переопределены.
+
+### Встроенный frontend
+
+После старта приложения главная страница `/` открывает простую панель:
+
+- создание события;
+- фильтрация списка событий;
+- расчёт DAU и счётчиков по типам событий.
 
 ## Валидация и ошибки
 
@@ -145,7 +160,7 @@ Swagger UI доступен на стандартном пути springdoc (`/sw
 ### Docker Compose
 
 ```bash
-docker compose up -d --build
+docker compose -f ops/docker-compose.yml up -d --build
 ```
 
 Поднимаются сервисы:
@@ -158,7 +173,7 @@ docker compose up -d --build
 Остановить:
 
 ```bash
-docker compose down -v
+docker compose -f ops/docker-compose.yml down -v
 ```
 
 ### Локально (без Docker)
@@ -178,7 +193,7 @@ Actuator включён, доступны эндпоинты:
 - `/actuator/metrics`
 - `/actuator/prometheus`
 
-Prometheus настраивается через `prometheus.yml`, Grafana доступна на `http://localhost:3000`.
+Prometheus настраивается через `ops/monitoring/prometheus.yml`, Grafana доступна на `http://localhost:3000`.
 
 ## Миграции Flyway
 
@@ -197,3 +212,12 @@ mvn test
 ```
 
 Для интеграционных тестов нужен Docker.
+
+## Инфраструктурные файлы
+
+Инфраструктурные и служебные конфиги вынесены из корня в `ops/`, чтобы корень проекта оставался компактным:
+
+- `ops/docker-compose.yml`
+- `ops/docker/Dockerfile`
+- `ops/monitoring/prometheus.yml`
+- `ops/qodana.yaml`
