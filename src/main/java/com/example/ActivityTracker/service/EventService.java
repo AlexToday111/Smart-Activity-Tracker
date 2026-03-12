@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -154,8 +155,10 @@ public class EventService {
         if (pageable.getSort().isSorted()) {
             return pageable;
         }
-        return Pageable.ofSize(pageable.getPageSize())
-                .withPage(pageable.getPageNumber())
-                .withSort(Sort.by(Sort.Direction.DESC, "eventTime"));
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "eventTime")
+        );
     }
 }
